@@ -1,0 +1,7 @@
+Gender classification using speech data
+
+The python script classifier.py tries to classify a speaker's gender using 
+the speech data.
+
+Dependancies:
+	sklearn - for svm classifier
