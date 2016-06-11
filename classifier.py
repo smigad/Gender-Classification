@@ -8,6 +8,7 @@ import csv
 import os
 from sklearn.svm import LinearSVC
 from sklearn.externals import joblib
+from utilities import *
 #to do feature extraction on data without silence
 
 def in_segment(x, seg):
@@ -24,36 +25,7 @@ svm = joblib.load('model/good_model.pkl')
 write_d = []
 sample_rate, data = wavfile.read(sys.argv[1])
 dur_smp = 1.0/sample_rate
-count = 0
-start = 0
-end = 0
-segments = []
-s_avg = max(data)*0.1 if max(data) > abs(min(data)) else abs(min(data))*0.1
-
-for i in range(0, len(data)):
-	if abs(data[i]) < s_avg:
-		if count == 0:
-			start = i
-		count = count + 1
-		#print "found  " + str(data[i]) + " --- " + str(start)
-	else:
-		if (count * dur_smp) > 0.1:
-			segments.append(start)
-			segments.append(i)
-			count = 0
-			#print 'end'
-		else:
-			count = 0
-print "done searching"			
-data2 = []
-data2.append(1)			
-for i in range(0, len(data)):
-	if not in_segment(i, segments):
-		data2.append(data[i])
-	#data2.append( 0.5 if in_segment(i, segments) else 0)
-data_no_silence = np.asarray(data2)
-print np.shape(data_no_silence)
-
+data_no_silence = no_silence(data, sample_rate)
 features = af.stFeatureExtraction(data_no_silence, sample_rate, 0.05*sample_rate, 0.025*sample_rate)
 res = svm.predict(features.transpose()).tolist()
 male_confidence = (float(res.count(0))/len(res)) * 100

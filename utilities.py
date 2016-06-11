@@ -40,8 +40,9 @@ def no_silence(data, sample_rate, plot=False):
 			segments.append(start)
 			segments.append(i)
 
-	for i in range(0, len(segments)):
-		print segments[i]
+	if plot:
+		for i in range(0, len(segments)):
+			print segments[i]
 
 	if plot:
 		data2 = []
@@ -62,3 +63,5 @@ def no_silence(data, sample_rate, plot=False):
 		plt.subplot(313)
 		plt.plot(data_no_silence, 'r')
 		plt.show()
+
+	return data_no_silence
