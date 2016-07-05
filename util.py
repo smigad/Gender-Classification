@@ -144,7 +144,7 @@ def stChromaFeatures(X, fs, nChroma, nFreqsPerChroma):
     C2[0:C.shape[0]] = C
     C2 = C2.reshape(C2.shape[0]/12, 12)
     #for i in range(12):
-    #    finalC[i] = numpy.sum(C[i:C.shape[0]:12])
+    #    finalC[i] = np.sum(C[i:C.shape[0]:12])
     finalC = np.matrix(np.sum(C2, axis=0)).T
     finalC /= spec.sum()
 
@@ -153,7 +153,7 @@ def stChromaFeatures(X, fs, nChroma, nFreqsPerChroma):
 #    plt.plot(finalC)
 #    ax.set_xticks(range(len(chromaNames)))
 #    ax.set_xticklabels(chromaNames)
-#    xaxis = numpy.arange(0, 0.02, 0.01);
+#    xaxis = np.arange(0, 0.02, 0.01);
 #    ax.set_yticks(range(len(xaxis)))
 #    ax.set_yticklabels(xaxis)
 #    plt.show(block=False)
@@ -252,6 +252,72 @@ def stChromaFeaturesInit(nfft, fs):
     return nChroma, nFreqsPerChroma
 
 
+def mfccInitFilterBanks(fs, nfft):
+    """
+    Computes the triangular filterbank for MFCC computation (used in the stFeatureExtraction function before the stMFCC function call)
+    This function is taken from the scikits.talkbox library (MIT Licence):
+    https://pypi.python.org/pypi/scikits.talkbox
+    """
+
+    # filter bank params:
+    lowfreq = 133.33
+    linsc = 200/3.
+    logsc = 1.0711703
+    numLinFiltTotal = 13
+    numLogFilt = 27
+
+    if fs < 8000:
+        nlogfil = 5
+
+    # Total number of filters
+    nFiltTotal = numLinFiltTotal + numLogFilt
+
+    # Compute frequency points of the triangle:
+    freqs = np.zeros(nFiltTotal+2)
+    freqs[:numLinFiltTotal] = lowfreq + np.arange(numLinFiltTotal) * linsc
+    freqs[numLinFiltTotal:] = freqs[numLinFiltTotal-1] * logsc ** np.arange(1, numLogFilt + 3)
+    heights = 2./(freqs[2:] - freqs[0:-2])
+
+    # Compute filterbank coeff (in fft domain, in bins)
+    fbank = np.zeros((nFiltTotal, nfft))
+    nfreqs = np.arange(nfft) / (1. * nfft) * fs
+
+    for i in range(nFiltTotal):
+        lowTrFreq = freqs[i]
+        cenTrFreq = freqs[i+1]
+        highTrFreq = freqs[i+2]
+
+        lid = np.arange(np.floor(lowTrFreq * nfft / fs) + 1, np.floor(cenTrFreq * nfft / fs) + 1, dtype=np.int)
+        lslope = heights[i] / (cenTrFreq - lowTrFreq)
+        rid = np.arange(np.floor(cenTrFreq * nfft / fs) + 1, np.floor(highTrFreq * nfft / fs) + 1, dtype=np.int)
+        rslope = heights[i] / (highTrFreq - cenTrFreq)
+        fbank[i][lid] = lslope * (nfreqs[lid] - lowTrFreq)
+        fbank[i][rid] = rslope * (highTrFreq - nfreqs[rid])
+
+    return fbank, freqs
+
+
+def stMFCC(X, fbank, nceps):
+    """
+    Computes the MFCCs of a frame, given the fft mag
+
+    ARGUMENTS:
+        X:        fft magnitude abs(FFT)
+        fbank:    filter bank (see mfccInitFilterBanks)
+    RETURN
+        ceps:     MFCCs (13 element vector)
+
+    Note:    MFCC calculation is, in general, taken from the scikits.talkbox library (MIT Licence),
+    #    with a small number of modifications to make it more compact and suitable for the pyAudioAnalysis Lib
+    """
+
+    mspec = np.log10(np.dot(X, fbank.T)+eps)
+    ceps = dct(mspec, type=2, norm='ortho', axis=-1)[:nceps]
+    return ceps
+
+
+
+
 
 def feature_extraction(signal, Fs, Win, Step):
     """
@@ -283,20 +349,14 @@ def feature_extraction(signal, Fs, Win, Step):
     countFrames = 0
     nFFT = Win / 2
 
-    '''i'm thinking of totally abandoning mfcc features since i think they are not 
-	features different for male and female in particular
 
-	so i'm gonna remove the mfcc calculations altogether
-	'''
+    [fbank, freqs] = mfccInitFilterBanks(Fs, nFFT)                # compute the triangular filter banks used in the mfcc calculation
 
-    #[fbank, freqs] = mfccInitFilterBanks(Fs, nFFT)                # compute the triangular filter banks used in the mfcc calculation
-    
-    # idk what chroma features are yet
     nChroma, nFreqsPerChroma = stChromaFeaturesInit(nFFT, Fs)
 
     numOfTimeSpectralFeatures = 8
     numOfHarmonicFeatures = 0
-    nceps = 0 #the number of mfcc features set to 0 from 13 cuz i don't need them now
+    nceps = 13 
     numOfChromaFeatures = 13
     totalNumOfFeatures = numOfTimeSpectralFeatures + nceps + numOfHarmonicFeatures + numOfChromaFeatures
 #    totalNumOfFeatures = numOfTimeSpectralFeatures + nceps + numOfHarmonicFeatures
@@ -320,8 +380,7 @@ def feature_extraction(signal, Fs, Win, Step):
         curFV[6] = stSpectralFlux(X, Xprev)              # spectral flux
         curFV[7] = stSpectralRollOff(X, 0.90, Fs)        # spectral rolloff
         
-        ''' DON'T NEED THE MFCCs ROUND HEE '''
-        #curFV[numOfTimeSpectralFeatures:numOfTimeSpectralFeatures+nceps, 0] = stMFCC(X, fbank, nceps).copy()    # MFCCs
+        curFV[numOfTimeSpectralFeatures:numOfTimeSpectralFeatures+nceps, 0] = stMFCC(X, fbank, nceps).copy()    # MFCCs
 
         chromaNames, chromaF = stChromaFeatures(X, Fs, nChroma, nFreqsPerChroma)
         curFV[numOfTimeSpectralFeatures + nceps: numOfTimeSpectralFeatures + nceps + numOfChromaFeatures - 1] = chromaF
