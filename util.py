@@ -357,8 +357,12 @@ def feature_extraction(signal, Fs, Win, Step):
     numOfTimeSpectralFeatures = 8
     numOfHarmonicFeatures = 0
     nceps = 13 
+<<<<<<< HEAD
     ''' REMOVING THE CHROMA FEATURES '''
     numOfChromaFeatures = 0 #IT USED TO BE 13
+=======
+    numOfChromaFeatures = 13
+>>>>>>> d8d4812bd5b453b117e1472a2aca35f630845ce3
     totalNumOfFeatures = numOfTimeSpectralFeatures + nceps + numOfHarmonicFeatures + numOfChromaFeatures
 #    totalNumOfFeatures = numOfTimeSpectralFeatures + nceps + numOfHarmonicFeatures
     stFeatures = np.array([], dtype=np.float64)
@@ -381,7 +385,10 @@ def feature_extraction(signal, Fs, Win, Step):
         curFV[6] = stSpectralFlux(X, Xprev)              # spectral flux
         curFV[7] = stSpectralRollOff(X, 0.90, Fs)        # spectral rolloff
         
+<<<<<<< HEAD
         
+=======
+>>>>>>> d8d4812bd5b453b117e1472a2aca35f630845ce3
         curFV[numOfTimeSpectralFeatures:numOfTimeSpectralFeatures+nceps, 0] = stMFCC(X, fbank, nceps).copy()    # MFCCs
 
         chromaNames, chromaF = stChromaFeatures(X, Fs, nChroma, nFreqsPerChroma)
@@ -406,4 +413,8 @@ def feature_extraction(signal, Fs, Win, Step):
             stFeatures = np.concatenate((stFeatures, curFV), 1)    # update feature matrix
         Xprev = X.copy()
 
+<<<<<<< HEAD
     return np.array(stFeatures)
+=======
+    return np.array(stFeatures)
+>>>>>>> d8d4812bd5b453b117e1472a2aca35f630845ce3
